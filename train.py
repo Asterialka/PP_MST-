@@ -14,6 +14,8 @@ import datetime
 import physically_plausible as pp
 import numpy as np
 
+from PIL import Image
+
 parser = argparse.ArgumentParser(description="Spectral Recovery Toolbox")
 parser.add_argument('--method', type=str, default='mst_plus_plus')
 parser.add_argument('--pretrained_model_path', type=str, default=None)
@@ -152,17 +154,31 @@ def validate(val_loader, model):
             # compute output
             print("INPUT SHAPE = ", input.shape)
             output = model(input)
-            print("OUTPUTS SHAPE = ", output.shape)
+            outputs = output.squeeze(0)
+
             
             images_rgb = input.permute(0, 2, 3, 1)
             funda_mat = torch.from_numpy(pp.calculate_fundamental_metamer(sensitivity)).float().cuda()
             output_spec = output.permute(0, 2, 3, 1)
             null_basis = torch.from_numpy(pp.calculate_null_basis(sensitivity)).float().cuda()
-            output = (torch.matmul(images_rgb, funda_mat.permute(1, 0)) + torch.matmul(output_spec, null_basis.permute(1, 0))).permute(0, 3, 2, 1)
-            print("TEST SHAPES = ", output.shape, target.shape)
+            output = (torch.matmul(images_rgb, funda_mat.permute(1, 0)) + torch.matmul(output_spec, null_basis.permute(1, 0))).permute(0, 3, 1, 2)
+ 
+            #output
+            outputs = output[:, :, 128:-128, 128:-128].permute(0, 2, 3, 1).cpu().numpy()
+            image_np = np.squeeze(outputs @ sensitivity)
+            image_pil = Image.fromarray((image_np * 255).astype(np.uint8))
+            image_pil.save('output_pil.png')
+            
+            #target
+            targets = target[:, :, 128:-128, 128:-128].permute(0, 2, 3, 1).cpu().numpy()
+            image_np = np.squeeze(targets @ sensitivity)
+            image_pil = Image.fromarray((image_np * 255).astype(np.uint8))
+            image_pil.save('output_pil_target.png')
+            
             loss_mrae = criterion_mrae(output[:, :, 128:-128, 128:-128], target[:, :, 128:-128, 128:-128])
             loss_rmse = criterion_rmse(output[:, :, 128:-128, 128:-128], target[:, :, 128:-128, 128:-128])
             loss_psnr = criterion_psnr(output[:, :, 128:-128, 128:-128], target[:, :, 128:-128, 128:-128])
+       
         # record loss
         losses_mrae.update(loss_mrae.data)
         losses_rmse.update(loss_rmse.data)
