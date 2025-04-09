@@ -114,7 +114,7 @@ def main():
             funda_mat = torch.from_numpy(pp.calculate_fundamental_metamer(sensitivity)).float().cuda()
             output_spec = output.permute(0, 2, 3, 1)
             null_basis = torch.from_numpy(pp.calculate_null_basis(sensitivity)).float().cuda()
-            output = (torch.matmul(images_rgb, funda_mat.permute(1, 0)) + torch.matmul(output_spec, null_basis.permute(1, 0))).permute(0, 3, 2, 1)
+            output = (torch.matmul(images_rgb, funda_mat.permute(1, 0)) + torch.matmul(output_spec, null_basis.permute(1, 0))).permute(0, 3, 1, 2)
             
             loss = 0.7 * criterion_mrae(output, labels) + 0.3 * criterion_rmse(output, labels)
             loss.backward()
